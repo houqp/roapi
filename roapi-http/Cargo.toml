@@ -21,10 +21,15 @@ snmalloc-rs = { version = "0.2", optional = true }
 
 # all actix dependencies are patched to use git source until actix-web 4.x lands
 actix-web = "4.0.0-beta.4"
+# actix-http = { version = "3.0.0-beta.4", optional = true }
 actix-http = "3.0.0-beta.4"
-actix-service = "2.0.0-beta.3"
+# actix-service = { version = "2.0.0-beta.3", optional = true }
+# actix-service = "2.0.0-beta.3"
 # see https://github.com/actix/actix-extras/pull/144 for cors tokio 1 upgrade
-actix-cors = "*"
+# actix-cors = "*"
+
+tokio = { version = "1" }
+axum = "0.2.8"
 
 env_logger = "0"
 log = "0"

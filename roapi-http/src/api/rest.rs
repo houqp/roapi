@@ -1,28 +1,29 @@
 use std::collections::HashMap;
+use std::sync::Arc;
 
-use actix_web::{web, HttpRequest, HttpResponse};
-use serde_derive::Deserialize;
+use axum::extract;
 
 use crate::api::{encode_record_batches, encode_type_from_req, HandlerContext};
 use crate::error::ApiErrResp;
 
-#[derive(Deserialize)]
-pub struct RestTablePath {
-    table_name: String,
+#[inline]
+pub async fn raw_get_table(
+    ctx: &HandlerContext,
+    table_name: &str,
+    query: &HashMap<String, String>,
+) -> Vec<u8> {
+    let encode_type = encode_type_from_req().unwrap();
+
+    let batches = ctx.cq.query_rest_table(table_name, &query).await.unwrap();
+
+    encode_record_batches(encode_type, &batches).unwrap()
 }
 
 pub async fn get_table(
-    data: web::Data<HandlerContext>,
-    path: web::Path<RestTablePath>,
-    req: HttpRequest,
-    query: web::Query<HashMap<String, String>>,
-) -> Result<HttpResponse, ApiErrResp> {
-    let encode_type = encode_type_from_req(req)?;
-
-    let batches = data
-        .cq
-        .query_rest_table(&path.table_name, &query.into_inner())
-        .await?;
-
-    encode_record_batches(encode_type, &batches)
+    state: extract::Extension<Arc<HandlerContext>>,
+    extract::Path(table_name): extract::Path<String>,
+    extract::Query(params): extract::Query<HashMap<String, String>>,
+) -> Vec<u8> {
+    let ctx = &state.0;
+    raw_get_table(ctx, &table_name, &params).await
 }

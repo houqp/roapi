@@ -1,15 +1,16 @@
 #![deny(warnings)]
 
 use std::fs;
+use std::sync::Arc;
 
-use actix_cors::Cors;
-use actix_web::{middleware, web, App, HttpServer};
 use anyhow::Context;
 use columnq::table::parse_table_uri_arg;
 
 use roapi_http::api;
 use roapi_http::api::HandlerContext;
 use roapi_http::config::Config;
+
+use axum::Router;
 
 #[cfg(snmalloc)]
 #[global_allocator]
@@ -27,7 +28,7 @@ fn table_arg() -> clap::Arg<'static> {
         .short('t')
 }
 
-#[actix_web::main]
+#[tokio::main]
 async fn main() -> anyhow::Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
@@ -76,29 +77,27 @@ async fn main() -> anyhow::Result<()> {
         config.addr = Some(addr.to_string());
     }
 
-    let ctx = web::Data::new(
-        HandlerContext::new(&config)
-            .await
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?,
-    );
+    let handler_ctx = HandlerContext::new(&config)
+        .await
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
 
-    // Start http server
-    HttpServer::new(move || {
-        let app = App::new()
-            .app_data(ctx.clone())
-            .wrap(middleware::Logger::default())
-            .wrap(
-                Cors::default()
-                    .allowed_methods(vec!["POST", "GET"])
-                    .supports_credentials()
-                    .max_age(3600),
-            );
-
-        api::register_app_routes(app)
-    })
-    .bind(config.addr.unwrap_or_else(|| "127.0.0.1:8080".to_string()))?
-    .run()
-    .await?;
+    let app = Router::new()
+        .route(
+            "/api/tables/:table_name",
+            axum::handler::get(api::rest::get_table),
+        )
+        .route("/api/schema", axum::handler::get(api::schema::schema));
+    let app = app.layer(axum::AddExtensionLayer::new(Arc::new(handler_ctx)));
+    axum::Server::bind(
+        &config
+            .addr
+            .unwrap_or("0.0.0.0:8080".to_string())
+            .parse()
+            .unwrap(),
+    )
+    .serve(app.into_make_service())
+    .await
+    .unwrap();
 
     Ok(())
 }

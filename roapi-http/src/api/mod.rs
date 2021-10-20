@@ -1,6 +1,5 @@
 use std::convert::TryFrom;
 
-use actix_web::{http, HttpRequest, HttpResponse};
 use columnq::datafusion::arrow;
 use columnq::encoding;
 use columnq::ColumnQ;
@@ -32,23 +31,27 @@ impl HandlerContext {
     }
 }
 
-pub fn encode_type_from_req(req: HttpRequest) -> Result<encoding::ContentType, ApiErrResp> {
-    match req.headers().get(http::header::ACCEPT) {
-        None => Ok(encoding::ContentType::Json),
-        Some(hdr_value) => {
-            encoding::ContentType::try_from(hdr_value.as_bytes()).map_err(|_| ApiErrResp {
-                code: http::StatusCode::BAD_REQUEST,
-                error: "unsupported_content_type".to_string(),
-                message: format!("{:?} is not a supported response content type", hdr_value),
-            })
-        }
-    }
+pub fn encode_type_from_req() -> Result<encoding::ContentType, ApiErrResp> {
+    Ok(encoding::ContentType::Json)
 }
 
+// pub fn encode_type_from_req(req: HttpRequest) -> Result<encoding::ContentType, ApiErrResp> {
+//     match req.headers().get(http::header::ACCEPT) {
+//         None => Ok(encoding::ContentType::Json),
+//         Some(hdr_value) => {
+//             encoding::ContentType::try_from(hdr_value.as_bytes()).map_err(|_| ApiErrResp {
+//                 // code: http::StatusCode::BAD_REQUEST,
+//                 error: "unsupported_content_type".to_string(),
+//                 message: format!("{:?} is not a supported response content type", hdr_value),
+//             })
+//         }
+//     }
+// }
+//
 pub fn encode_record_batches(
     content_type: encoding::ContentType,
     batches: &[arrow::record_batch::RecordBatch],
-) -> Result<HttpResponse, ApiErrResp> {
+) -> Result<Vec<u8>, ApiErrResp> {
     let payload = match content_type {
         encoding::ContentType::Json => encoding::json::record_batches_to_bytes(batches)
             .map_err(ApiErrResp::json_serialization)?,
@@ -64,15 +67,16 @@ pub fn encode_record_batches(
             .map_err(ApiErrResp::parquet_serialization)?,
     };
 
-    let mut resp = HttpResponse::Ok();
-    let builder = resp.content_type(content_type.to_str());
-    Ok(builder.body(payload))
+    Ok(payload)
+    // let mut resp = HttpResponse::Ok();
+    // let builder = resp.content_type(content_type.to_str());
+    // Ok(builder.body(payload))
 }
 
-pub mod graphql;
+// pub mod graphql;
 pub mod rest;
 pub mod routes;
 pub mod schema;
-pub mod sql;
+// pub mod sql;
 
-pub use routes::register_app_routes;
+// pub use routes::register_app_routes;
