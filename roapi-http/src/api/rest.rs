@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use axum::extract;
+use rocket::get;
+use rocket::State;
 
 use crate::api::{encode_record_batches, encode_type_from_req, HandlerContext};
 use crate::error::ApiErrResp;
@@ -19,11 +20,11 @@ pub async fn raw_get_table(
     encode_record_batches(encode_type, &batches).unwrap()
 }
 
+#[get("/api/tables/<table_name>?<params..>")]
 pub async fn get_table(
-    state: extract::Extension<Arc<HandlerContext>>,
-    extract::Path(table_name): extract::Path<String>,
-    extract::Query(params): extract::Query<HashMap<String, String>>,
+    ctx: &State<HandlerContext>,
+    table_name: &str,
+    params: HashMap<String, String>,
 ) -> Vec<u8> {
-    let ctx = &state.0;
-    raw_get_table(ctx, &table_name, &params).await
+    raw_get_table(ctx, table_name, &params).await
 }

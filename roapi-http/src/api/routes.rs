@@ -2,12 +2,12 @@ use std::collections::HashMap;
 
 use crate::api;
 
-use axum::{handler::get, Router};
+use rocket::Rocket;
+use rocket::{get, routes};
 
-// pub fn app_routes() -> axum::Router<S> {
-//     let app = Router::new().route("/api/tables/:table_name", get(api::rest::get_table));
-//     app
-// }
+pub fn register_app_routes(app: Rocket<rocket::Build>) -> Rocket<rocket::Build> {
+    app.mount("/", routes![api::schema::schema, api::rest::get_table])
+}
 
 #[cfg(test)]
 mod tests {

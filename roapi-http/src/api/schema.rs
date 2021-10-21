@@ -4,15 +4,16 @@ use std::sync::Arc;
 use crate::api::HandlerContext;
 use crate::error::ApiErrResp;
 
-use axum::extract;
+use rocket::get;
+use rocket::State;
 
 pub async fn raw_get(ctx: &HandlerContext) -> Vec<u8> {
     serde_json::to_vec(ctx.cq.schema_map()).unwrap()
 }
 
-pub async fn schema(state: extract::Extension<Arc<HandlerContext>>) -> Vec<u8> {
-    let ctx = state.0;
-    raw_get(&ctx).await
+#[get("/api/schema")]
+pub async fn schema(ctx: &State<HandlerContext>) -> Vec<u8> {
+    raw_get(ctx).await
 }
 
 // #[derive(Deserialize)]

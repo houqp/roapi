@@ -10,8 +10,6 @@ use roapi_http::api;
 use roapi_http::api::HandlerContext;
 use roapi_http::config::Config;
 
-use axum::Router;
-
 #[cfg(snmalloc)]
 #[global_allocator]
 static ALLOC: snmalloc_rs::SnMalloc = snmalloc_rs::SnMalloc;
@@ -28,7 +26,7 @@ fn table_arg() -> clap::Arg<'static> {
         .short('t')
 }
 
-#[tokio::main]
+#[rocket::main]
 async fn main() -> anyhow::Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
@@ -81,23 +79,12 @@ async fn main() -> anyhow::Result<()> {
         .await
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
 
-    let app = Router::new()
-        .route(
-            "/api/tables/:table_name",
-            axum::handler::get(api::rest::get_table),
-        )
-        .route("/api/schema", axum::handler::get(api::schema::schema));
-    let app = app.layer(axum::AddExtensionLayer::new(Arc::new(handler_ctx)));
-    axum::Server::bind(
-        &config
-            .addr
-            .unwrap_or("0.0.0.0:8080".to_string())
-            .parse()
-            .unwrap(),
-    )
-    .serve(app.into_make_service())
-    .await
-    .unwrap();
+    let config = rocket::Config {
+        port: 8080,
+        ..rocket::Config::default()
+    };
+    let app = rocket::custom(config).manage(handler_ctx);
+    api::register_app_routes(app).launch().await?;
 
     Ok(())
 }
